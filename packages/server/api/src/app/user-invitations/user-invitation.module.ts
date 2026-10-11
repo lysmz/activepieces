@@ -125,6 +125,7 @@ const invitationController: FastifyPluginAsyncZod = async (app) => {
         const invitation = await userInvitationsService(request.log).removeProjectFromPlatformInvite({
             id: request.params.id,
             platformId: request.principal.platform.id,
+            projectId: request.body.projectId,
         })
         await reply.status(StatusCodes.OK).send(invitation)
     })
@@ -315,6 +316,9 @@ const RemoveProjectFromInvitationRequestParams = {
         description: 'Take the project off a platform invitation. The person still joins the platform when they accept.',
         params: z.object({
             id: z.string(),
+        }),
+        body: z.object({
+            projectId: z.string(),
         }),
         response: {
             [StatusCodes.OK]: UserInvitation,
