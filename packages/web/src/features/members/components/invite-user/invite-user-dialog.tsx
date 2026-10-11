@@ -163,8 +163,8 @@ const InviteUserDialogInternal = ({
 
   const resultsWithLinks = invitationResults.filter((r) => r.link);
   const hasLinks = resultsWithLinks.length > 0;
-  const addedMembersCount = invitationResults.filter(
-    (r) => r.status === InvitationStatus.ACCEPTED,
+  const addedMembersCount = invitationResults.filter((result) =>
+    wasAddedNow({ result, platformUserEmails }),
   ).length;
 
   const { mutate, isPending } = useMutation<
@@ -196,8 +196,8 @@ const InviteUserDialogInternal = ({
       return Promise.all(promises);
     },
     onSuccess: (results) => {
-      const addedCount = results.filter(
-        (r) => r.status === InvitationStatus.ACCEPTED,
+      const addedCount = results.filter((result) =>
+        wasAddedNow({ result, platformUserEmails }),
       ).length;
       const invitedCount = results.filter((r) => r.link).length;
 
@@ -574,6 +574,17 @@ const InviteUserDialogInternal = ({
   );
 };
 
+function wasAddedNow({
+  result,
+  platformUserEmails,
+}: WasAddedNowParams): boolean {
+  return (
+    result.status === InvitationStatus.ACCEPTED &&
+    !result.link &&
+    platformUserEmails.has(result.email.toLowerCase())
+  );
+}
+
 function invitedProjectMode({
   type,
   platformRole,
@@ -805,4 +816,9 @@ type InvitedProjectFieldsParams = {
   data: FormSchema;
   projectRolesEnabled: boolean;
   personalProjectsActive: boolean;
+};
+
+type WasAddedNowParams = {
+  result: UserInvitationWithLink;
+  platformUserEmails: Set<string>;
 };
