@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import {
+  CodeAction,
   EmptyTrigger,
+  FlowActionType,
   FlowOperationRequest,
   FlowOperationStatus,
   FlowOperationType,
@@ -10,6 +12,7 @@ import {
   NoteColorVariant,
   PopulatedFlow,
   SampleDataFileType,
+  flowOperations,
 } from '@activepieces/shared';
 import { QueryClient } from '@tanstack/react-query';
 import { AxiosError, AxiosHeaders } from 'axios';
@@ -18,6 +21,7 @@ import { io } from 'socket.io-client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BuilderStore, createBuilderStore } from '@/app/builder/builder-hooks';
+import { RightSideBarType } from '@/app/builder/types';
 
 const flowsApiMock = vi.hoisted(() => ({
   update: vi.fn(),
@@ -361,9 +365,7 @@ describe('flow state save retries', () => {
       'Your change was not saved',
       expect.anything(),
     );
-    expect(store.getState().flowVersion.displayName).toBe(
-      'Name on the server',
-    );
+    expect(store.getState().flowVersion.displayName).toBe('Name on the server');
 
     await vi.advanceTimersByTimeAsync(10_000);
     expect(toast.error).toHaveBeenCalledTimes(1);
@@ -389,6 +391,146 @@ describe('flow state save retries', () => {
     },
   );
 });
+
+describe('flow state draft refresh after a failed save', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    flowsApiMock.update.mockReset();
+    flowsApiMock.get.mockReset();
+    vi.spyOn(toast, 'error').mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('keeps the open step panel', async () => {
+    serveDraft(flowWithLookUpOrderStep());
+    const store = createStore(flowWithLookUpOrderStep());
+    store.getState().selectStepByName('step_1');
+
+    store.getState().applyOperation(changeName(NAME_THE_SERVER_REJECTS));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(store.getState()).toMatchObject({
+      selectedStep: 'step_1',
+      rightSidebar: RightSideBarType.PIECE_SETTINGS,
+    });
+    expect(store.getState().flowVersion.displayName).toBe('Order lookup');
+  });
+
+  it('saves an edit inside the debounce before the refetch, and shows it', async () => {
+    serveDraft(flowWithLookUpOrderStep());
+    const store = createStore(flowWithLookUpOrderStep());
+
+    store.getState().applyOperation(renameTrigger('New order'));
+    store.getState().applyOperation(changeName(NAME_THE_SERVER_REJECTS));
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(store.getState().flowVersion).toMatchObject({
+      displayName: 'Order lookup',
+      trigger: { displayName: 'New order' },
+    });
+  });
+
+  it('does not apply a refetched draft while an edit waits, and fetches again', async () => {
+    const server = serveDraft(flowWithLookUpOrderStep());
+    const firstResponse = Promise.withResolvers<void>();
+    flowsApiMock.get.mockImplementationOnce(async () => {
+      const draftWithoutTheEdit = server.currentFlow();
+      await firstResponse.promise;
+      return draftWithoutTheEdit;
+    });
+    const store = createStore(flowWithLookUpOrderStep());
+
+    store.getState().applyOperation(changeName(NAME_THE_SERVER_REJECTS));
+    await vi.advanceTimersByTimeAsync(0);
+    store.getState().applyOperation(renameTrigger('New order'));
+    firstResponse.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(store.getState().flowVersion.trigger.displayName).toBe('New order');
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(flowsApiMock.get).toHaveBeenCalledTimes(2);
+    expect(store.getState().flowVersion).toMatchObject({
+      displayName: 'Order lookup',
+      trigger: { displayName: 'New order' },
+    });
+  });
+
+  it('does not apply a refetched draft when a save ends during the request, and fetches again', async () => {
+    const server = serveDraft(flowWithLookUpOrderStep());
+    const firstResponse = Promise.withResolvers<void>();
+    flowsApiMock.get.mockImplementationOnce(async () => {
+      const draftWithoutTheSave = server.currentFlow();
+      await firstResponse.promise;
+      return draftWithoutTheSave;
+    });
+    const store = createStore(flowWithLookUpOrderStep());
+
+    store.getState().applyOperation(changeName(NAME_THE_SERVER_REJECTS));
+    await vi.advanceTimersByTimeAsync(0);
+    store.getState().applyOperation(changeName('Order lookup by email'));
+    await vi.advanceTimersByTimeAsync(0);
+    firstResponse.resolve();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(flowsApiMock.get).toHaveBeenCalledTimes(2);
+    expect(store.getState().flowVersion.displayName).toBe(
+      'Order lookup by email',
+    );
+  });
+});
+
+function serveDraft(flow: PopulatedFlow) {
+  let draft = flow.version;
+  const currentFlow = (): PopulatedFlow => ({ ...flow, version: draft });
+  flowsApiMock.update.mockImplementation(
+    async (_flowId: string, operation: FlowOperationRequest) => {
+      if (
+        operation.type === FlowOperationType.CHANGE_NAME &&
+        operation.request.displayName === NAME_THE_SERVER_REJECTS
+      ) {
+        throw httpError({ status: 400 });
+      }
+      draft = flowOperations.apply(draft, operation);
+      return currentFlow();
+    },
+  );
+  flowsApiMock.get.mockImplementation(async () => currentFlow());
+  return { currentFlow };
+}
+
+function flowWithLookUpOrderStep(): PopulatedFlow {
+  const flow = draftFlow('Order lookup');
+  return {
+    ...flow,
+    version: {
+      ...flow.version,
+      trigger: { ...flow.version.trigger, nextAction: lookUpOrderStep() },
+    },
+  };
+}
+
+function lookUpOrderStep(): CodeAction {
+  return {
+    name: 'step_1',
+    valid: true,
+    displayName: 'Look up order',
+    lastUpdatedDate: '2026-01-01T00:00:00.000Z',
+    type: FlowActionType.CODE,
+    settings: {
+      sourceCode: {
+        code: 'export const code = async (inputs) => inputs;',
+        packageJson: '{}',
+      },
+      input: {},
+      errorHandlingOptions: {},
+    },
+  };
+}
 
 function networkError() {
   return new AxiosError('Network Error', AxiosError.ERR_NETWORK, undefined, {});
@@ -553,3 +695,5 @@ function draftFlow(displayName: string): PopulatedFlow {
     },
   };
 }
+
+const NAME_THE_SERVER_REJECTS = 'Name the server rejects';
