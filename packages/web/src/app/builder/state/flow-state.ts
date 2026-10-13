@@ -46,6 +46,8 @@ export type FlowState = {
   savePendingEdits: () => Promise<void>;
   flushPendingEdits: () => void;
   setFlow: (flow: PopulatedFlow) => void;
+  applyDraftRefresh: (flow: PopulatedFlow) => void;
+  draftRefreshCount: number;
   setSampleDataLocally: (params: {
     stepName: string;
     type: 'input' | 'output';
@@ -130,6 +132,13 @@ export const createFlowState = (
       });
     },
     setFlow: (flow: PopulatedFlow) => set({ flow, selectedStep: null }),
+    applyDraftRefresh: (flow: PopulatedFlow) =>
+      set((state) => ({
+        flow,
+        flowVersion: flow.version,
+        draftRefreshCount: state.draftRefreshCount + 1,
+      })),
+    draftRefreshCount: 0,
     setSampleDataLocally: ({
       stepName,
       value,
