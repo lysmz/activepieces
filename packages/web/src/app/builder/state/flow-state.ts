@@ -49,7 +49,8 @@ export type FlowState = {
   flushPendingEdits: () => void;
   setFlow: (flow: PopulatedFlow) => void;
   applyDraftRefresh: (flow: PopulatedFlow) => void;
-  refreshDraft: () => Promise<void>;
+  refreshDraft: () => Promise<boolean>;
+  showsNewestVersion: () => boolean;
   draftRefreshCount: number;
   setSampleDataLocally: (params: {
     stepName: string;
@@ -251,6 +252,10 @@ export const createFlowState = (
                   updatedFlowVersion: serverFlowVersion,
                 });
               return {
+                flow: withNewestDraft({
+                  flow: state.flow,
+                  version: serverFlowVersion,
+                }),
                 flowVersion: {
                   ...updatedFlowVersionWithUpdatedSampleData,
                   id: serverFlowVersion.id,
@@ -322,6 +327,17 @@ export const createFlowState = (
       flowUpdatesDebounce.flush();
     },
     refreshDraft,
+    showsNewestVersion: () => {
+      const { run, flow, flowVersion } = get();
+      const isPublishedVersionWithNoDraft =
+        flowVersion.id === flow.version.id &&
+        flowVersion.id === flow.publishedVersionId;
+      return (
+        isNil(run) &&
+        (flowVersion.state === FlowVersionState.DRAFT ||
+          isPublishedVersionWithNoDraft)
+      );
+    },
     setVersion: (
       flowVersion: FlowVersion,
       shouldReselectInitialStep: boolean = true,
@@ -332,6 +348,7 @@ export const createFlowState = (
         initiallySelectedStep === 'trigger' &&
         flowVersion.trigger.type === FlowTriggerType.EMPTY;
       set((state) => ({
+        flow: withNewestDraft({ flow: state.flow, version: flowVersion }),
         flowVersion,
         run: null,
         selectedStep: shouldReselectInitialStep
@@ -485,17 +502,17 @@ export const createFlowState = (
   };
 };
 
-function coalesceRuns(run: () => Promise<void>): () => Promise<void> {
-  let running: Promise<void> | null = null;
-  let queued: Promise<void> | null = null;
-  const start = (): Promise<void> => {
+function coalesceRuns<T>(run: () => Promise<T>): () => Promise<T> {
+  let running: Promise<T> | null = null;
+  let queued: Promise<T> | null = null;
+  const start = (): Promise<T> => {
     const current = run().finally(() => {
       running = null;
     });
     running = current;
     return current;
   };
-  const startAfter = async (previous: Promise<void>): Promise<void> => {
+  const startAfter = async (previous: Promise<T>): Promise<T> => {
     await tryCatch(() => previous);
     queued = null;
     return start();
@@ -520,7 +537,10 @@ async function saveThenRefreshDraft({
   get: StoreApi<BuilderState>['getState'];
   flowUpdatesQueue: PromiseQueue;
   flowUpdatesDebounce: KeyedDebounce;
-}): Promise<void> {
+}): Promise<boolean> {
+  if (!get().showsNewestVersion()) {
+    return false;
+  }
   await tryCatch(() => get().savePendingEdits());
   return fetchDraftAndApplyWithNoPendingEdits({
     get,
@@ -537,7 +557,7 @@ async function fetchDraftAndApplyWithNoPendingEdits({
   get: StoreApi<BuilderState>['getState'];
   flowUpdatesQueue: PromiseQueue;
   flowUpdatesDebounce: KeyedDebounce;
-}): Promise<void> {
+}): Promise<boolean> {
   const { flow, flowVersion: versionAtRequest } = get();
   const { data: serverFlow, error } = await tryCatch(() =>
     flowsApi.get(flow.id),
@@ -546,7 +566,10 @@ async function fetchDraftAndApplyWithNoPendingEdits({
     internalErrorToast();
     throw error;
   }
-  const { flowVersion, applyDraftRefresh } = get();
+  const { flowVersion, applyDraftRefresh, showsNewestVersion } = get();
+  if (!showsNewestVersion()) {
+    return false;
+  }
   if (
     flowVersion !== versionAtRequest ||
     hasPendingEdits({ flowUpdatesQueue, flowUpdatesDebounce })
@@ -559,6 +582,7 @@ async function fetchDraftAndApplyWithNoPendingEdits({
     });
   }
   applyDraftRefresh(serverFlow);
+  return true;
 }
 
 async function waitForPendingEditsToSave({
@@ -676,6 +700,22 @@ const handleUpdatingSampleDataForStepLocallyAfterServerUpdate = ({
     },
   });
 };
+
+function withNewestDraft({
+  flow,
+  version,
+}: {
+  flow: PopulatedFlow;
+  version: FlowVersion;
+}): PopulatedFlow {
+  if (
+    version.state !== FlowVersionState.DRAFT ||
+    version.id === flow.version.id
+  ) {
+    return flow;
+  }
+  return { ...flow, version };
+}
 
 function isSelectedStepGone({
   selectedStep,
