@@ -3,7 +3,7 @@ import { apVersionUtil } from '@activepieces/server-utils'
 import { ExecutionMode, NetworkMode, WorkerGroupScope, WorkerMachineHealthcheckRequest, WorkerMachineStatus, WorkerMachineType, WorkerMachineWithStatus, WorkerSettingsResponse } from '@activepieces/shared'
 
 import { FastifyBaseLogger } from 'fastify'
-import { workerGroupService } from '../../ee/platform/platform-plan/worker-group.service'
+import { workerGroupService } from '../../community/compat'
 import { domainHelper } from '../../helper/domain-helper'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'

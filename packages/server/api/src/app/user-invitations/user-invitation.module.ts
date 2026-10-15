@@ -5,13 +5,13 @@ import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { userIdentityService } from '../authentication/user-identity/user-identity-service'
+import { assertRoleHasPermission, platformMustBeOwnedByCurrentUser, platformMustHaveFeatureEnabled, platformPlanService, projectMustBeTeamType, projectRoleService } from '../community/compat'
+
+
+
 import { transaction } from '../core/db/transaction'
 import { ProjectResourceType } from '../core/security/authorization/common'
 import { securityAccess } from '../core/security/authorization/fastify-security'
-import { platformMustBeOwnedByCurrentUser, platformMustHaveFeatureEnabled, projectMustBeTeamType } from '../ee/authentication/ee-authorization'
-import { assertRoleHasPermission } from '../ee/authentication/project-role/rbac-middleware'
-import { platformPlanService } from '../ee/platform/platform-plan/platform-plan.service'
-import { projectRoleService } from '../ee/projects/project-role/project-role.service'
 import { rejectedPromiseHandler } from '../helper/promise-handler'
 import { telemetry } from '../helper/telemetry.utils'
 import { projectService } from '../project/project-service'

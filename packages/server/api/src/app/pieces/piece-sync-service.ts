@@ -1,8 +1,10 @@
 import { groupBy, tryCatch } from '@activepieces/core-utils'
+import { PieceMetadataModel } from '@activepieces/pieces-framework'
 import { apVersionUtil } from '@activepieces/server-utils'
 import { PieceAudienceFilter, PieceSyncMode, PieceType } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import semver from 'semver'
+import { z } from 'zod'
 import { rejectedPromiseHandler } from '../helper/promise-handler'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
@@ -107,7 +109,7 @@ async function installNewPieces(cloudPieces: PieceRegistryResponse[], dbPieces: 
                 fetchFailed++
                 return
             }
-            const pieceMetadata = await response.json()
+            const pieceMetadata = z.custom<PieceMetadataModel>(value => PieceMetadataModel.safeParse(value).success).parse(await response.json())
             const { error } = await tryCatch(() => pieceMetadataService(log).create({
                 pieceMetadata,
                 packageType: pieceMetadata.packageType,
@@ -142,7 +144,7 @@ async function listCloudPieces(): Promise<PieceRegistryResponse[]> {
     if (!response.ok) {
         throw new Error(`Failed to fetch cloud pieces: ${response.status}`)
     }
-    const pieces: PieceRegistryResponse[] = await response.json()
+    const pieces = z.array(z.object({ name: z.string(), version: z.string() })).parse(await response.json())
     const piecesByName = groupBy(pieces, p => p.name)
     const latest = []
     const others = []

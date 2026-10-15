@@ -1,7 +1,7 @@
 import { FileType } from '@activepieces/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { entitiesMustBeOwnedByCurrentProject } from '../authentication/authorization'
-import { agentRetention } from '../ee/agent/agent-retention'
+import { agentRetention } from '../community/compat'
 import { flowBackgroundJobs } from '../flows/flow/flow.jobs'
 import { SystemJobName } from '../helper/system-jobs/common'
 import { systemJobHandlers } from '../helper/system-jobs/job-handlers'

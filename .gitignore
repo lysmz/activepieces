@@ -108,3 +108,8 @@ deploy/terraform/**/.terraform.lock.hcl
 deploy/terraform/**/terraform.tfvars
 deploy/terraform/**/terraform-*.tfvars
 .devtools
+
+# Local CE runtime and verification output
+/dev/
+/ce-*.log
+/ce-audit.json

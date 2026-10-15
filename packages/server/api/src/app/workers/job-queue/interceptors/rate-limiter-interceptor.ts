@@ -4,10 +4,10 @@ import { ApEdition, ExecuteFlowJobData, getDefaultJobPriority, JOB_PRIORITY, Job
 import { Job } from 'bullmq'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
+import { concurrencyPoolService, workerGroupService } from '../../../community/compat'
 import { getConcurrencyPoolParkedKey, getConcurrencyPoolSetKey, getPlatformPlanNameKey, PLATFORM_PLAN_NAME_TTL_SECONDS } from '../../../database/redis/keys'
 import { distributedStore, redisConnections } from '../../../database/redis-connections'
-import { concurrencyPoolService } from '../../../ee/platform/concurrency-pool/concurrency-pool.service'
-import { workerGroupService } from '../../../ee/platform/platform-plan/worker-group.service'
+
 import { system } from '../../../helper/system/system'
 import { AppSystemProp } from '../../../helper/system/system-props'
 import { platformService } from '../../../platform/platform.service'

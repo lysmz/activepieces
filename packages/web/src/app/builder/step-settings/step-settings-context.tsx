@@ -9,18 +9,13 @@ import {
   FlowTrigger,
   PropertyExecutionType,
 } from '@activepieces/shared';
-import {
-  createContext,
-  ReactNode,
-  useCallback,
-  useContext,
-  useRef,
-  useState,
-} from 'react';
+import { ReactNode, useCallback, useContext, useRef, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { z, ZodObject } from 'zod';
 
 import { formUtils } from '@/features/pieces';
+
+import { StepSettingsContext } from './step-settings-context-store';
 const numberReplacement = 'def.options.0.element';
 const stringReplacement = 'shape.';
 const createUpdatedSchemaKey = (propertyKey: string) => {
@@ -57,10 +52,6 @@ export type StepSettingsProviderProps = {
   pieceModelNotFound: boolean;
   children: ReactNode;
 };
-
-const StepSettingsContext = createContext<StepSettingsContextState | undefined>(
-  undefined,
-);
 
 export const StepSettingsProvider = ({
   selectedStep,
@@ -137,7 +128,7 @@ export const useStepSettingsContext = () => {
   const context = useContext(StepSettingsContext);
   if (context === undefined) {
     throw new Error(
-      'useStepSettingsContext must be used within a PieceSettingsProvider',
+      'useStepSettingsContext must be used within a StepSettingsProvider',
     );
   }
   return context;

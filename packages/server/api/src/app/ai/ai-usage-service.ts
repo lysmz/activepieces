@@ -1,7 +1,7 @@
 import { ActivepiecesAiConsumerSource, AiCallTokens, isNil, spreadIfDefined, tryCatch } from '@activepieces/core-utils'
 import { isAppSumoCreditedPlan, ReportAiUsageRequest } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { platformPlanService } from '../ee/platform/platform-plan/platform-plan.service'
+import { platformPlanService } from '../community/compat'
 import { trackBillingAndSendTelemetry } from '../platform/billing-and-telemetry'
 import { AiCreditConsumptionProperties, ChatAppSumoConsumptionProperties, ChatCreditConsumptionProperties, CreditUsageSource } from '../platform/billing-provider'
 import { chargeFor, CostBasis, costBasisOf } from './ai-credits'

@@ -3,10 +3,10 @@ import { apVersionUtil, onCallService, UNKNOWN_VERSION } from '@activepieces/ser
 import { ExecutionType, FileCompression, FileLocation, FileType, FlowOperationType, FlowStatus, WebsocketClientEvent, WorkerGroupScope, WorkerToApiContract } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { aiRpcHandlers } from '../../ai/ai-rpc-handlers'
+import { agentRpcHandlers, chatPersonalizationService } from '../../community/compat'
 import { websocketService } from '../../core/websockets.service'
 import { distributedStore, redisConnections } from '../../database/redis-connections'
-import { agentRpcHandlers } from '../../ee/agent/agent-rpc-handlers'
-import { chatPersonalizationService } from '../../ee/agent/personalization/chat-personalization-service'
+
 import { eventDestinationRpcHandlers } from '../../event-destinations/event-destinations-rpc-handlers'
 import { fileService, getLocationForFile } from '../../file/file.service'
 import { s3Helper } from '../../file/s3-helper'

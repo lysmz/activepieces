@@ -4,9 +4,9 @@ import { ApEdition, ApEnvironment, AppConnection, AppConnectionId, AppConnection
 import { FastifyBaseLogger } from 'fastify'
 import semver from 'semver'
 import { ArrayContains, Equal, FindOperator, FindOptionsWhere, ILike, In } from 'typeorm'
+import { containsSecretManagerReference, projectMemberService, secretManagersService } from '../../community/compat'
+
 import { repoFactory } from '../../core/db/repo-factory'
-import { projectMemberService } from '../../ee/projects/project-members/project-member.service'
-import { containsSecretManagerReference, secretManagersService } from '../../ee/secret-managers/secret-managers.service'
 import { flowService } from '../../flows/flow/flow.service'
 import { encryptUtils } from '../../helper/encryption'
 import { jwtUtils } from '../../helper/jwt-utils'

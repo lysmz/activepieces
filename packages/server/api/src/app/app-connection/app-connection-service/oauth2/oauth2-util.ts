@@ -5,7 +5,7 @@ import { AppConnection, AppConnectionType, BaseOAuth2ConnectionValue, GetOAuth2A
 import { isAxiosError } from 'axios'
 import { FastifyBaseLogger } from 'fastify'
 import { nanoid } from 'nanoid'
-import { secretManagersService } from '../../../ee/secret-managers/secret-managers.service'
+import { secretManagersService } from '../../../community/compat'
 import { pieceMetadataService } from '../../../pieces/metadata/piece-metadata-service'
 
 export const oauth2Util = (log: FastifyBaseLogger) => ({

@@ -1,7 +1,7 @@
 import { ActivepiecesError, apId, ErrorCode, isNil, tryCatch } from '@activepieces/core-utils'
 import { McpToolDefinition, McpToolResult, PopulatedMcpServer } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { platformPlanService } from '../ee/platform/platform-plan/platform-plan.service'
+import { platformPlanService } from '../community/compat'
 import { rejectedPromiseHandler } from '../helper/promise-handler'
 import { trackBillingAndSendTelemetry } from '../platform/billing-and-telemetry'
 import { assertCreditsNotExceeded, CreditUsageSource, McpCallCreditConsumptionProperties } from '../platform/billing-provider'

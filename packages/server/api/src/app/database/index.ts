@@ -6,7 +6,7 @@ import { databaseSeeds } from './seeds'
 export async function initializeDatabase({ runMigrations }: { runMigrations: boolean }): Promise<void> {
     const ds = databaseConnection()
     await ds.initialize()
-    if (runMigrations) {
+    if (runMigrations && system.getEdition() !== 'ce') {
         await backgroundMigrationRunner.runMigrationsWithCatchup({ dataSource: ds, log: system.globalLogger() })
     }
     await databaseSeeds.run()

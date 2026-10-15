@@ -1,8 +1,8 @@
 import { isNil, Permission } from '@activepieces/core-utils'
 import { McpReachResponse, McpToolResult, Project, ProjectType } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { editionRequiresRbac } from '../ee/authentication/project-role/rbac-middleware'
-import { projectMemberService } from '../ee/projects/project-members/project-member.service'
+import { editionRequiresRbac, projectMemberService } from '../community/compat'
+
 import { projectService } from '../project/project-service'
 import { userService } from '../user/user-service'
 import { deny } from './mcp-permissions'

@@ -9,7 +9,7 @@ import { PGliteDriver } from 'typeorm-pglite'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
 import { commonProperties } from './database-connection'
-import { getMigrations } from './postgres-connection'
+
 
 const getPGliteDataPathFromDisk = (): string => {
     const apConfigDirectoryPath = system.getOrThrow(AppSystemProp.CONFIG_PATH)
@@ -69,8 +69,8 @@ export const createPGliteDataSource = (): DataSource => {
         }).driver,
         migrationsRun: false,
         migrationsTransactionMode: 'each',
-        migrations: env !== ApEnvironment.TESTING ? getMigrations() : [],
-        synchronize: env === ApEnvironment.TESTING,
+        migrations: [],
+        synchronize: true,
         ...commonProperties,
     })
 }

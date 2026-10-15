@@ -4,12 +4,12 @@ import { ApEdition, AuthenticationResponse, CreatePlatformRequest, FileType, has
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
+import { beginPlatformTeardown, chatVisibilityHelper, emailService, platformPlanService, platformToEditMustBeOwnedByCurrentUser } from '../community/compat'
+
+
+
+
 import { securityAccess } from '../core/security/authorization/fastify-security'
-import { chatVisibilityHelper } from '../ee/agent/chat-visibility-helper'
-import { platformToEditMustBeOwnedByCurrentUser } from '../ee/authentication/ee-authorization'
-import { emailService } from '../ee/helper/email/email-service'
-import { platformPlanService } from '../ee/platform/platform-plan/platform-plan.service'
-import { beginPlatformTeardown } from '../ee/platform/platform-teardown-jobs'
 import { fileService } from '../file/file.service'
 import { attachMultipartFieldsToBody } from '../helper/multipart-body'
 import { networkUtils } from '../helper/network-utils'

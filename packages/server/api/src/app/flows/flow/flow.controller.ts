@@ -5,12 +5,12 @@ import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { entitiesMustBeOwnedByCurrentProject } from '../../authentication/authorization'
+import { assertUserHasPermissionToFlow, gitRepoService, platformPlanService, projectLimitsService } from '../../community/compat'
+
+
+
 import { ProjectResourceType } from '../../core/security/authorization/common'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
-import { assertUserHasPermissionToFlow } from '../../ee/authentication/project-role/rbac-middleware'
-import { platformPlanService } from '../../ee/platform/platform-plan/platform-plan.service'
-import { projectLimitsService } from '../../ee/projects/project-plan/project-plan.service'
-import { gitRepoService } from '../../ee/projects/project-release/git-sync/git-sync.service'
 import { networkUtils } from '../../helper/network-utils'
 import { userService } from '../../user/user-service'
 import { migrateFlowVersionTemplate } from '../flow-version/migrations'

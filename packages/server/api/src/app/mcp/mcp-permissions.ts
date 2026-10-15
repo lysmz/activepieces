@@ -1,7 +1,7 @@
 import { ActivepiecesError, ErrorCode, isNil, Permission, tryCatch } from '@activepieces/core-utils'
 import { McpToolDefinition, McpToolResult, ProjectRole } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { editionRequiresRbac, getPrincipalRoleOrThrow } from '../ee/authentication/project-role/rbac-middleware'
+import { editionRequiresRbac, getPrincipalRoleOrThrow } from '../community/compat'
 
 export async function resolvePermissionChecker({ userId, projectId, log }: ResolveCheckerParams): Promise<PermissionChecker> {
     return buildPermissionChecker({ userId, projectId, log })
