@@ -2,21 +2,20 @@ const fs = require('node:fs');
 const path = require('node:path');
 const net = require('node:net');
 const { spawn } = require('node:child_process');
-const dotenv = require('dotenv');
+const { ceConfig } = require('./config.cjs');
 const { redisReady, httpReady, waitFor } = require('./readiness.cjs');
 
 const root = path.resolve(__dirname, '../..');
-const environment = { ...process.env, ...dotenv.parse(fs.readFileSync(path.join(root, '.env.dev'))) };
-environment.AP_EDITION = 'ce';
-environment.AP_DEV_PIECES = 'webhook,http,mcp';
+const environment = ceConfig.loadEnvironment({ root });
+ceConfig.getPieces({ root, environment });
 const children = [];
 let closing = false;
 
-function launch({ command, args, cwd = root, name, env = {} }) {
+function launch({ command, args, cwd = root, name, env = {}, stopOnExit = true }) {
   const child = spawn(command, args, { cwd, env: { ...environment, ...env }, stdio: 'inherit', windowsHide: true });
   children.push(child);
   child.on('error', error => { console.error(`${name}: ${error.message}`); shutdown(1); });
-  child.on('exit', code => { if (!closing) { console.error(`${name} exited (${code})`); shutdown(code || 1); } });
+  child.on('exit', code => { if (!closing && stopOnExit) { console.error(`${name} exited (${code})`); shutdown(code || 1); } });
   return child;
 }
 
@@ -48,8 +47,16 @@ async function shutdown(code) {
 }
 
 async function main() {
+  ceConfig.validateEnvironment({ environment });
+  console.log('Configuration: .env overrides .env.dev defaults; AP_EDITION=ce.');
   if (await listening({ port: 3000 }) || await listening({ port: 3001 }) || await listening({ port: 4200 })) throw new Error('CE ports 3000/3001/4200 are already in use. Stop the existing CE stack first.');
   if (!fs.existsSync(path.join(root, 'dist/packages/engine/main.js'))) throw new Error('Run npm run ce:build before starting the stack.');
+  console.log(`Preparing development pieces: ${environment.AP_DEV_PIECES}`);
+  const build = launch({ command: process.execPath, args: [path.join(__dirname, 'build.cjs'), '--pieces-only'], name: 'Development pieces', stopOnExit: false });
+  await new Promise((resolve, reject) => {
+    build.once('error', reject);
+    build.once('exit', code => code === 0 ? resolve() : reject(new Error(`Development pieces build failed (${code}).`)));
+  });
   if (!await redisReady({ port: 16379 })) {
     console.log('Starting the workspace memory queue...');
     const script = path.join(__dirname, 'redis.sh').replaceAll('\\', '/').replace(/^([A-Za-z]):/, (_, drive) => '/mnt/' + drive.toLowerCase());
@@ -66,7 +73,7 @@ async function main() {
   launch({ command: process.execPath, args: [path.join(root, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1'], cwd: path.join(root, 'packages/web'), name: 'Web' });
   await waitFor({ check: () => httpReady({ port: 4200, pathname: '/' }), name: 'web UI', timeoutMs: 120000 });
   console.log('Community Edition ready at http://localhost:4200 (dev@ap.com / 12345678).');
-  console.log('Phase 1 only. DataMapper integration awaits manual verification.');
+  console.log('Stock Data Mapper is available when selected in AP_DEV_PIECES; the custom visual editor is not integrated yet.');
 }
 
 process.on('SIGINT', () => shutdown(0));

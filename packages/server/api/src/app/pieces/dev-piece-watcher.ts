@@ -35,7 +35,7 @@ async function buildPieces(app: FastifyInstance, piecesInfo: PieceInfo[]): Promi
     const lock = await memoryLock.acquire(PIECES_BUILDER_MUTEX_KEY)
     try {
         const startTime = performance.now()
-        await spawnAndWait('npx', ['turbo', 'run', 'build', ...filterArgs])
+        await spawnAndWait(process.execPath, [join(process.cwd(), 'node_modules/turbo/bin/turbo'), 'run', 'build', ...filterArgs])
         const buildTime = (performance.now() - startTime) / 1000
 
         app.log.info(`Build completed in ${buildTime.toFixed(2)} seconds`)

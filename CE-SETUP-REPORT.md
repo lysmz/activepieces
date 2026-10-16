@@ -12,12 +12,12 @@ The existing DataMapper project outside this subdirectory is preserved. Phase 2 
 | Node.js API | <http://localhost:3000> | Authentication and project endpoints verified |
 | Database | `AP_DB_TYPE=PGLITE`, `dev/config/pglite` | Initialized and development user seeded |
 | Queue | Localhost port `16379`, Redis under the existing Ubuntu WSL distribution | Persistence disabled; worker connected and processing jobs |
-| Edition | `AP_EDITION=ce` in `.env` and `.env.dev`; server edition fixed to CE | CE routes and open-source plan active |
-| Development pieces | `webhook,http,mcp` | Built and available in the editor |
+| Edition | CE launcher and server force `AP_EDITION=ce` | CE routes and open-source plan active |
+| Development pieces | `webhook,http,mcp,data-mapper,json,data-summarizer,delay,forms,sftp,schedule,xml,approval` | All 12 built and their local metadata loaded successfully; restart required for an existing process |
 
 Login: **`dev@ap.com` / `12345678`**.
 
-Current upstream no longer reads `AP_QUEUE_MODE`. The compatible local queue uses Redis with `--save '' --appendonly no`; `AP_REDIS_TYPE=STANDALONE` points the application at that memory-only process. Redis packages were extracted into `dev/runtime`; no system Redis service was installed. PGLite data persists in the workspace.
+The compatible local queue uses Redis with `--save '' --appendonly no`; `AP_REDIS_TYPE=STANDALONE` points the application at that memory-only process. Compatibility code still reads `AP_QUEUE_MODE=MEMORY` and would override that selection, so the CE loader clears the legacy variable for standalone Redis. Redis packages were extracted into `dev/runtime`; no system Redis service was installed. PGLite data persists in the workspace.
 
 ## Removed directories and license audit
 
@@ -53,14 +53,15 @@ Windows build commands were adjusted only for the libraries and selected develop
 
 ## Verification
 
-- Shared libraries and all three selected pieces: build passed.
+- Shared libraries and all 12 selected pieces: build passed; each piece's local metadata loaded successfully. The latest rebuild completed all 16 tasks; log: `ce-env-pieces-build.log`.
+- Piece selection, environment precedence, worker authentication, startup readiness and environment-file commit protection: all 13 regression checks passed. The API build also passed after the Windows watcher change. Verification logs: `ce-pieces-build.log` and `ce-enable-pieces-api-build.log`.
 - Execution engine and sandbox: build passed.
 - API, worker and frontend application TypeScript checks: passed with zero errors.
 - Frontend production build: passed; upstream bundling warnings remain.
 - Seeded login, project listing, browser dashboard and flow canvas: verified.
 - CE worker: connected to the API and polling successfully.
 - EE path/import audit and original root license checksum: passed.
-- Required lint command: `npm run lint-dev` passed with all 31 tasks successful and no errors. Existing warnings remain; the latest successful full-run log is `ce-commit-lint.log`.
+- Required lint command: `npm run lint-dev` passed with all 31 tasks successful and no errors. Existing warnings remain; the latest successful full-run log is `ce-env-lint.log`.
 - Step settings provider crash: fixed by sharing the React context outside the hot-reloaded provider module. A regression test renders a provider and consumer loaded from different module versions; it passes, as do the frontend TypeScript check and targeted ESLint. The reported flow loaded with its HTTP settings visible. Browser connection timeouts limited the final interactive hot-reload check.
 - Restart verification: all four startup readiness tests passed. The API and worker health endpoints returned HTTP 200, flags returned HTTP 200 through Vite, the worker connected over Socket.IO, and the root page opened the dashboard showing the existing flows. The verified startup log is `ce-startup.log`.
 - Separate remaining catalogue issue: the remote template categories response fails the local category-array validation. This produces `/api/v1/templates/categories` errors but does not block the verified dashboard, API health, or worker connection.
@@ -71,7 +72,7 @@ The checkout is already installed and running. Upstream uses `workspace:*` depen
 
 ```powershell
 # Dependency installation, if needed again:
-bun install --filter activepieces --filter api --filter web --filter worker --filter @activepieces/engine --filter @activepieces/piece-webhook --filter @activepieces/piece-http --filter @activepieces/piece-mcp
+bun install --filter activepieces --filter api --filter web --filter worker --filter @activepieces/engine --filter @activepieces/piece-webhook --filter @activepieces/piece-http --filter @activepieces/piece-mcp --filter @activepieces/piece-data-mapper --filter @activepieces/piece-json --filter @activepieces/piece-data-summarizer --filter @activepieces/piece-delay --filter @activepieces/piece-forms --filter @activepieces/piece-sftp --filter @activepieces/piece-schedule --filter @activepieces/piece-xml --filter @activepieces/piece-approval
 
 # After stopping the currently running development stack:
 npm start
@@ -86,12 +87,34 @@ npm run ce:audit
 npm run lint-dev
 ```
 
+`npm start` runs `tools/ce/dev.cjs`, which loads configuration through `tools/ce/config.cjs`. `npm run ce:build` uses the same loader. Precedence, from lowest to highest, is inherited process variables, `.env.dev` defaults, then `.env`. The launcher fixes `AP_EDITION=ce` and manages the service roles and ports. The API and worker bootstrap files still load `.env.dev`, but dotenv does not override the configuration inherited from the launcher. The upstream `npm run dev` command follows a different path; use `npm start` for this CE setup.
+
+Edit `AP_DEV_PIECES` in `.env` to select local pieces; this list controls both `npm start` and `npm run ce:build`. Startup builds the selected pieces before starting the API, and rejects unknown piece names. Newly selected workspaces must have their dependencies installed with Bun first. Selected piece build commands use Node's file copy instead of Unix `cp`, and the dev watcher invokes the local Turbo entry point through Node so it also works on Windows without an `npx` shell shim.
+
+### Environment configuration
+
+The root `.env.example` describes this local CE setup. On a fresh checkout, copy it to `.env` and fill both secret values before starting. On this host, `.env` already contains the settings and persistent secrets needed without relying on `.env.dev`; the existing encryption and JWT keys were preserved. Never replace the encryption key when reusing the database, because saved connections depend on it.
+
+| Variables | Purpose |
+| --- | --- |
+| `AP_ENCRYPTION_KEY`, `AP_JWT_SECRET` | Required persistent secrets. The encryption key must be exactly 32 characters. The launcher validates them before starting services. |
+| `AP_DB_TYPE=PGLITE`, `AP_CONFIG_PATH=./dev/config` | Select the local database and its persistent data directory. |
+| `AP_REDIS_TYPE=STANDALONE`, `AP_REDIS_HOST=127.0.0.1`, `AP_REDIS_PORT=16379` | Connect to the workspace-local Redis process. Omit legacy `AP_QUEUE_MODE`. |
+| `AP_DEV_PIECES`, `AP_PIECES_SYNC_MODE=NONE` | Select locally built pieces and avoid syncing the remote piece catalogue. |
+| `AP_FRONTEND_URL=http://localhost:4200` | Public development address used to generate links and webhook URLs. |
+| `AP_CACHE_BASE_PATH=./dev/cache` | Worker cache directory; replaces the unused `AP_CACHE_PATH` name. |
+| `AP_DENO_PATH` | Optional for startup; set an absolute path to the installed Deno executable to execute Code steps. |
+| `AP_WORKER_TOKEN` | Usually omit. The CE loader signs a worker token with the effective `AP_JWT_SECRET`; an explicit token in `.env` must match that secret. |
+| Remaining example settings | Development execution, logging, polling and disabled telemetry/cloud features; retained for an explicit, reproducible local setup. |
+
+The launcher supplies `AP_CONTAINER_TYPE`, the API port 3000, worker health port 3001 and the worker's internal API URL. They do not need entries in `.env`. `AP_WEBHOOK_URL`, `AP_CACHE_PATH`, `AP_API_KEY` and Postgres credentials are unnecessary for this PGLite CE setup and are omitted from the example.
+
 On this Windows host, `npm start` uses the existing Ubuntu WSL distribution for the workspace-local queue. It verifies Redis with `PING`, starts the API as `APP`, waits for `/api/v1/health`, then starts the worker as `WORKER` with its internal API URL on port 3000 and health listener on port 3001. Vite starts only after worker health succeeds. Wait for `Community Edition ready at http://localhost:4200` before opening the app; the first TypeScript API boot can take several minutes, with progress reported every 15 seconds.
 
-The launcher refuses duplicate listeners on ports 3000, 3001 and 4200 and stops its child process trees when it exits. Startup readiness regressions are covered by `node --test tools/ce/readiness.test.cjs`. Runtime data and verification logs are ignored by Git.
+The launcher refuses duplicate listeners on ports 3000, 3001 and 4200 and stops its child process trees when it exits. Regressions are covered by `node --test tools/ce/readiness.test.cjs tools/ce/config.test.cjs tools/ce/hooks.test.cjs`. Runtime data and verification logs are ignored by Git.
 
-Environment files, local encryption keys and runtime data stay outside this commit. The repository's commit hook rejects environment files; the local `.env.dev` changes remain in the working tree. The CE runtime settings are listed above.
+The public root `.env.example` is versioned with empty secret values. Private `.env` and local `.env.dev` changes, encryption keys and runtime data stay outside this commit. The commit hook permits only the root example and rejects other environment files; the local `.env.dev` changes remain in the working tree.
 
 ## Manual verification gate
 
-Manual verification is complete: the webhook captured the three sample orders, the user confirmed the HTTP echo request worked, and the sample flow was published. The Community Edition is running at <http://localhost:4200>. No DataMapper piece or custom dialog integration has been started.
+Manual verification is complete: the webhook captured the three sample orders, the user confirmed the HTTP echo request worked, and the sample flow was published. The Community Edition is running at <http://localhost:4200>. The stock Data Mapper and JSON pieces are enabled for the next startup. Custom DataMapper dialog integration has not been started.

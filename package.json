@@ -57,8 +57,8 @@
     "security:sla": "npx ts-node --project tools/tsconfig.tools.json tools/scripts/security/sla-report.ts",
     "sync-model-catalog": "npx tsx tools/scripts/sync-model-catalog.ts",
     "knip": "knip --workspace packages/web",
-    "build": "turbo run build --filter=api --filter=worker --filter=web --filter=@activepieces/piece-webhook --filter=@activepieces/piece-http --filter=@activepieces/piece-mcp --ui=stream",
-    "ce:build": "turbo run build --filter=api --filter=worker --filter=web --filter=@activepieces/piece-webhook --filter=@activepieces/piece-http --filter=@activepieces/piece-mcp --ui=stream",
+    "build": "node tools/ce/build.cjs",
+    "ce:build": "node tools/ce/build.cjs",
     "ce:audit": "node tools/ce/audit.cjs"
   },
   "private": true,
