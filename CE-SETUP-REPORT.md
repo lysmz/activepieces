@@ -51,6 +51,10 @@ The local PGLite database is created from the remaining CE entity schemas. It us
 
 Windows build commands were adjusted only for the libraries and selected development pieces that need a portable replacement for `cp`. The shared package patch version was incremented for its relocated exports.
 
+The latest piece changes affect only the `build` command in nine manifests: JSON, Approval, Data Mapper, Data Summarizer, Delay, Forms, Schedule, SFTP and XML. After TypeScript compilation, each piece must copy its `package.json` into `dist` so the local piece loader can read the package metadata. The old command used Unix `cp`, which is unavailable in a standard Windows shell. Node's `fs.copyFileSync` performs the same copy on Windows and Unix. The Webhook, HTTP and MCP manifests received that adjustment earlier. These edits do not change piece actions, inputs or transformation logic.
+
+The piece watcher now invokes the installed Turbo script using the running Node executable. This avoids spawning the Windows `npx` shell shim as though it were a native executable. Startup also builds every piece selected in `AP_DEV_PIECES` before loading metadata; this makes the first startup work when ignored `dist` folders are absent on another PC.
+
 ## Verification
 
 - Shared libraries and all 12 selected pieces: build passed; each piece's local metadata loaded successfully. The latest rebuild completed all 16 tasks; log: `ce-env-pieces-build.log`.
@@ -61,7 +65,8 @@ Windows build commands were adjusted only for the libraries and selected develop
 - Seeded login, project listing, browser dashboard and flow canvas: verified.
 - CE worker: connected to the API and polling successfully.
 - EE path/import audit and original root license checksum: passed.
-- Required lint command: `npm run lint-dev` passed with all 31 tasks successful and no errors. Existing warnings remain; the latest successful full-run log is `ce-env-lint.log`.
+- Commented environment example: all 24 parsed values match the verified template; all seven configuration regression tests passed again.
+- Required lint command: `npm run lint-dev` passed with all 31 tasks successful and no errors. Existing warnings remain; the latest successful full-run log is `ce-env-comments-lint.log`.
 - Step settings provider crash: fixed by sharing the React context outside the hot-reloaded provider module. A regression test renders a provider and consumer loaded from different module versions; it passes, as do the frontend TypeScript check and targeted ESLint. The reported flow loaded with its HTTP settings visible. Browser connection timeouts limited the final interactive hot-reload check.
 - Restart verification: all four startup readiness tests passed. The API and worker health endpoints returned HTTP 200, flags returned HTTP 200 through Vite, the worker connected over Socket.IO, and the root page opened the dashboard showing the existing flows. The verified startup log is `ce-startup.log`.
 - Separate remaining catalogue issue: the remote template categories response fails the local category-array validation. This produces `/api/v1/templates/categories` errors but does not block the verified dashboard, API health, or worker connection.
@@ -103,7 +108,7 @@ The root `.env.example` describes this local CE setup. On a fresh checkout, copy
 | `AP_DEV_PIECES`, `AP_PIECES_SYNC_MODE=NONE` | Select locally built pieces and avoid syncing the remote piece catalogue. |
 | `AP_FRONTEND_URL=http://localhost:4200` | Public development address used to generate links and webhook URLs. |
 | `AP_CACHE_BASE_PATH=./dev/cache` | Worker cache directory; replaces the unused `AP_CACHE_PATH` name. |
-| `AP_DENO_PATH` | Optional for startup; set an absolute path to the installed Deno executable to execute Code steps. |
+| `AP_DENO_PATH` | Optional for startup; set an absolute path to the real Deno executable for Deno Code steps, code transpilation and script expressions in inputs. |
 | `AP_WORKER_TOKEN` | Usually omit. The CE loader signs a worker token with the effective `AP_JWT_SECRET`; an explicit token in `.env` must match that secret. |
 | Remaining example settings | Development execution, logging, polling and disabled telemetry/cloud features; retained for an explicit, reproducible local setup. |
 
@@ -114,6 +119,46 @@ On this Windows host, `npm start` uses the existing Ubuntu WSL distribution for 
 The launcher refuses duplicate listeners on ports 3000, 3001 and 4200 and stops its child process trees when it exits. Regressions are covered by `node --test tools/ce/readiness.test.cjs tools/ce/config.test.cjs tools/ce/hooks.test.cjs`. Runtime data and verification logs are ignored by Git.
 
 The public root `.env.example` is versioned with empty secret values. Private `.env` and local `.env.dev` changes, encryption keys and runtime data stay outside this commit. The commit hook permits only the root example and rejects other environment files; the local `.env.dev` changes remain in the working tree.
+
+## Moving to another Windows PC
+
+`activepieces` is a separate Git repository with origin `https://github.com/lysmz/activepieces.git`; it is not tracked by the parent `Datamapper` repository. Push the commits on `codex/activepieces-ce` to that origin before cloning the branch on the new PC. Committing or cloning only the parent repository does not transfer this checkout.
+
+1. Install Git, Node.js matching `.nvmrc` (`v24.14.0`), Bun matching `package.json` (`1.4.0`), and WSL with an Ubuntu distribution. Install Deno for flow execution and locate its real executable. Set the new machine's absolute executable path in `AP_DENO_PATH`; do not copy a path containing the old PC's user directory.
+2. Clone the Activepieces fork's `codex/activepieces-ce` branch, enter that checkout, and run the filtered `bun install` command under **Commands for this checkout**. Use Bun to install workspace dependencies; use Node/npm to launch this CE setup.
+3. For a fresh application database, copy `.env.example` to `.env`, generate the two secret values using the one-line commands in its comments, and fill `AP_DENO_PATH`. The template supplies the other local settings. Run each command separately; no PowerShell continuation characters or here-strings are required.
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+4. Recreate Redis on the new PC. Nothing from the old Redis instance needs transferring: it stores a disposable job queue with persistence disabled. The old `dev/runtime` binaries are ignored by Git. The launcher can use a Redis server already listening on `127.0.0.1:16379`, so a new Ubuntu installation can provide it instead. Open Ubuntu using this command in a separate terminal:
+
+   ```powershell
+   wsl -d Ubuntu
+   ```
+
+   In that Ubuntu shell, install Redis and start it in the foreground. Keep this terminal open while using the app:
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y redis-server
+   redis-server --bind 127.0.0.1 --port 16379 --save "" --appendonly no --protected-mode yes
+   ```
+
+5. Back in PowerShell at the Activepieces repository root, build the runtime, selected pieces and frontend. These build outputs are ignored by Git and must be recreated:
+
+   ```powershell
+   npm run ce:build
+   ```
+
+6. Start the app and wait for the ready message before opening `http://localhost:4200`:
+
+   ```powershell
+   npm start
+   ```
+
+To preserve existing flows, accounts and connections instead of starting with a fresh application database, stop the old app first and transfer its `dev/config` directory and private `.env` separately. Preserve the original encryption and JWT keys and update machine-specific paths. Do not commit that database or the private environment file. Redis and `dev/cache` do not need to move. A Git clone by itself starts with no local application data.
 
 ## Manual verification gate
 
